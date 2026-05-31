@@ -1,0 +1,16 @@
+[Unit]
+Description=cognee REST API server (embedded)
+After=network.target
+
+[Service]
+# Run cognee's own FastAPI app with uvicorn from the persisted venv. The login
+# shell sources /etc/profile.d/cognee.sh, putting the venv on PATH and exporting
+# SYSTEM_ROOT_DIRECTORY / DATA_ROOT_DIRECTORY plus the user's ~/.cognee/.env, so
+# the server writes to the same embedded store the in-process library uses.
+EnvironmentFile=-/home/workshop/.cognee/.env
+ExecStart=/bin/bash -lc 'exec uvicorn cognee.api.client:app --host 0.0.0.0 --port 8000'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+# Reports SDK health. The library must import; if the REST server is enabled
+# (COGNEE_SERVE), its HTTP endpoint must answer too.
+set -uo pipefail
+
+# 1. In-process library must import from the persisted venv.
+if ! out=$(sudo -u workshop --login \
+        python -c "import cognee, importlib.metadata as m; print(m.version('cognee'))" 2>&1); then
+    workshopctl set-health error "cognee library not importable: ${out}"
+    exit 0
+fi
+
+# 2. REST server: only checked when the user enabled it. /docs is the FastAPI
+#    Swagger UI — it answers without authentication once the app is up.
+serve="$(sudo -u workshop --login bash -lc 'echo "${COGNEE_SERVE:-0}"')"
+case "$serve" in
+    1|true|TRUE|yes|on)
+        if ! curl -fsS --max-time 5 -o /dev/null http://127.0.0.1:8000/docs 2>/dev/null; then
+            workshopctl set-health waiting "cognee library ${out} ok; REST server starting on :8000"
+            exit 0
+        fi
+        echo -n "cognee ${out} — library ready; REST API on the cognee-api tunnel (:8000)"
+        ;;
+    *)
+        echo -n "cognee ${out} — in-process library ready (set COGNEE_SERVE=1 in ~/.cognee/.env for the REST server)"
+        ;;
+esac
+
+workshopctl set-health okay

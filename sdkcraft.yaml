@@ -1,0 +1,84 @@
+name: cognee
+adopt-info: cognee
+build-base: ubuntu@24.04
+summary: AI memory engine that turns your data into a queryable knowledge graph
+description: |
+  This SDK provides cognee, an open-source AI memory engine that turns your
+  documents and conversations into a queryable knowledge graph, inside a
+  workshop in two interchangeable forms that share one local store:
+
+  - In-process library — the upstream `cognee` package installed into a
+    persisted virtual environment, so you can `import cognee` and use its async
+    API (the `add` -> `cognify` -> `search` pipeline, or the high-level
+    `remember` / `recall`) directly.
+  - REST API server — cognee's own FastAPI app (`cognee.api.client:app`), run
+    fully embedded and exposed on a tunnel for the host or other workshops to
+    consume over HTTP.
+
+  cognee runs entirely locally by default: the relational (SQLite), vector
+  (LanceDB), and graph (Kuzu) stores are all file-based and live under
+  ~/.cognee, which is persisted on the host across workshop updates along with
+  the virtual environment. cognee needs an LLM — by default OpenAI (set
+  LLM_API_KEY in ~/.cognee/.env); point LLM_PROVIDER / LLM_ENDPOINT at a local
+  Ollama for fully offline use. The REST server is off by default — enable it
+  with COGNEE_SERVE=1 in ~/.cognee/.env.
+license: Apache-2.0
+# Every part is nil/dump (no arch-specific build work — the cognee install
+# happens at runtime in hooks), so any runner can cross-pack any platform.
+platforms:
+  amd64:
+    build-on: [amd64, arm64]
+    build-for: [amd64]
+  arm64:
+    build-on: [amd64, arm64]
+    build-for: [arm64]
+
+plugs:
+  # GPU access for a local in-workshop embedding/LLM backend (e.g. an Ollama
+  # running inside the workshop). Ignored when cognee is backed by a hosted API
+  # such as OpenAI.
+  gpu:
+    interface: gpu
+
+  # Persisted cognee working directory: the relational/vector/graph stores
+  # (SYSTEM_ROOT_DIRECTORY), the ingested-data storage (DATA_ROOT_DIRECTORY),
+  # and .env (LLM credentials + the COGNEE_SERVE toggle).
+  cognee-data:
+    interface: mount
+    workshop-target: /home/workshop/.cognee
+    mode: 0o700
+
+  # Persisted virtual environment holding the cognee install, so the (slow)
+  # install only happens once and survives updates.
+  cognee-venv:
+    interface: mount
+    workshop-target: /home/workshop/.local/share/cognee
+
+  # Persisted pip download cache to speed up reinstalls.
+  pip-cache:
+    interface: mount
+    workshop-target: /home/workshop/.cache/pip
+
+slots:
+  # The cognee REST API server (when COGNEE_SERVE=1). Reach it from the host or
+  # a peer workshop over a tunnel.
+  cognee-api:
+    interface: tunnel
+    endpoint: 8000
+
+parts:
+  # Version-only part: drives `adopt-info` from VERSION and ships VERSION into
+  # the SDK payload (read at runtime by the hooks to pin the cognee install).
+  cognee:
+    plugin: nil
+    override-pull: |
+      VERSION=$(cat "$CRAFT_PROJECT_DIR/VERSION")
+      craftctl set version="$VERSION"
+    override-build: |
+      install -D -m644 "$CRAFT_PROJECT_DIR/VERSION" "$CRAFT_PART_INSTALL/VERSION"
+
+  # systemd user unit for the REST server. Lands at $SDK/cognee-server.service.
+  services:
+    plugin: dump
+    source: services
+    source-type: local

@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+# Runs as root on launch and refresh. System-wide setup: install the Python
+# tooling needed to build the persisted venv, and expose the venv + cognee
+# environment to every login shell (including the systemd user unit, which
+# starts via `bash -lc`). cognee needs Python 3.10+; Ubuntu 24.04 ships 3.12.
+set -euo pipefail
+
+apt-get update
+eatmydata apt-get install python3-venv python3-pip
+
+cat <<EOF >/etc/profile.d/cognee.sh
+# cognee SDK environment
+export COGNEE_SDK_DIR="${SDK}"
+export COGNEE_HOME="/home/workshop/.cognee"
+# Pin the relational/vector/graph stores and ingested-data storage onto the
+# persisted cognee-data mount, independent of the shell's working directory.
+export SYSTEM_ROOT_DIRECTORY="/home/workshop/.cognee/system"
+export DATA_ROOT_DIRECTORY="/home/workshop/.cognee/data"
+export PATH="/home/workshop/.local/share/cognee/venv/bin:\$PATH"
+# Load the user's LLM credentials and toggles (LLM_API_KEY, COGNEE_SERVE, ...)
+# so both the in-process library and the CLI pick them up. Readable only by the
+# workshop user, so this is a no-op for other accounts.
+set -a
+[ -r "\$COGNEE_HOME/.env" ] && . "\$COGNEE_HOME/.env"
+set +a
+EOF

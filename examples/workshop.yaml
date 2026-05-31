@@ -1,0 +1,24 @@
+# Reference workshop for the cognee SDK.
+#
+#   workshop launch
+#   workshop info        # health line: library ready / REST API URL
+#   workshop shell       # then: python -c "import cognee"
+#
+# By default cognee runs as an in-process library only (`import cognee`). To
+# also expose the REST API (:8000) to the host, set COGNEE_SERVE=1 in
+# ~/.cognee/.env and `workshop refresh`; the cognee-api tunnel below
+# auto-connects because its slot lives on this SDK and the matching plug is on
+# the system SDK.
+name: cognee
+base: ubuntu@24.04
+sdks:
+  - name: cognee
+    channel: latest/stable
+  - name: system
+    plugs:
+      cognee-api:
+        interface: tunnel
+        endpoint: localhost:8000
+
+actions:
+  shell: python

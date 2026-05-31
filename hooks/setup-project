@@ -1,0 +1,75 @@
+#!/usr/bin/bash
+# Runs as the workshop user after interfaces are connected. Builds the persisted
+# venv (cognee + uvicorn), seeds the data directories and .env, installs the
+# REST server systemd unit, and starts it only when COGNEE_SERVE is enabled.
+set -euo pipefail
+
+VERSION="$(cat "$SDK/VERSION")"
+VENV="/home/workshop/.local/share/cognee/venv"
+COGNEE_HOME="/home/workshop/.cognee"
+
+mkdir -p "$COGNEE_HOME/system" "$COGNEE_HOME/data" /home/workshop/.cache/pip
+chmod 700 "$COGNEE_HOME"
+
+# --- Persisted virtual environment --------------------------------------------
+if [ ! -x "$VENV/bin/python" ]; then
+    python3 -m venv "$VENV"
+    "$VENV/bin/pip" install --upgrade pip
+fi
+# Pin cognee to the SDK version; uvicorn backs the optional REST server.
+"$VENV/bin/pip" install \
+    "cognee==${VERSION}" \
+    "uvicorn[standard]"
+
+# --- Configuration / secrets / toggles (idempotent) --------------------------
+# No secrets are shipped — the file is seeded once on the persisted mount and
+# reused across every `workshop refresh`.
+if [ ! -f "$COGNEE_HOME/.env" ]; then
+    cat <<'EOF' > "$COGNEE_HOME/.env"
+# cognee SDK configuration. Edit, then apply with `workshop refresh`
+# (or, for just the REST server: `systemctl --user restart cognee-server`).
+#
+# --- LLM (required) ----------------------------------------------------------
+# cognee needs an LLM and an embedder. The default provider is OpenAI; set your
+# key by uncommenting the line below:
+# LLM_API_KEY=sk-...
+# LLM_PROVIDER=openai
+# LLM_MODEL=gpt-4o-mini
+#
+# Fully local / keyless via an Ollama running in this workshop (needs the gpu
+# plug) or reachable on the network:
+# LLM_PROVIDER=ollama
+# LLM_MODEL=llama3.1:8b
+# LLM_ENDPOINT=http://127.0.0.1:11434/v1
+# LLM_API_KEY=ollama
+# EMBEDDING_PROVIDER=ollama
+# EMBEDDING_MODEL=nomic-embed-text
+# EMBEDDING_ENDPOINT=http://127.0.0.1:11434/v1
+# EMBEDDING_DIMENSIONS=768
+#
+# NOTE: if you configure only the LLM or only the embedder, the other one falls
+# back to OpenAI — set both to stay fully local.
+#
+# --- REST API server ---------------------------------------------------------
+# Set to 1 to run the cognee REST API server (exposed on the cognee-api tunnel,
+# :8000). Leave 0/unset for in-process library use only.
+COGNEE_SERVE=0
+EOF
+    chmod 600 "$COGNEE_HOME/.env"
+fi
+
+# --- REST server systemd user unit -------------------------------------------
+install -D --mode=644 "$SDK/cognee-server.service" \
+    ~/.config/systemd/user/cognee-server.service
+systemctl --user daemon-reload
+
+set +u
+# shellcheck disable=SC1091
+[ -f "$COGNEE_HOME/.env" ] && . "$COGNEE_HOME/.env"
+set -u
+case "${COGNEE_SERVE:-0}" in
+    1|true|TRUE|yes|on)
+        systemctl --user enable --now cognee-server ;;
+    *)
+        systemctl --user disable --now cognee-server 2>/dev/null || true ;;
+esac

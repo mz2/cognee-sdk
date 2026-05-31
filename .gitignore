@@ -1,0 +1,10 @@
+*.sdk
+/test/
+__pycache__/
+*.pyc
+.claude/
+.workshop.lock
+.workshop/
+parts/
+stage/
+prime/

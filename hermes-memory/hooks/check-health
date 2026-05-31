@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+# Reports whether the provider is staged and whether the mount has delivered it
+# into the Hermes plugin path. This SDK only delivers code — the Hermes agent
+# and the cognee server live in (and are health-checked by) their own SDKs.
+set -uo pipefail
+
+DEST="/home/workshop/.local/share/cognee-hermes/plugins/cognee_local"
+
+if [ ! -f "$DEST/__init__.py" ]; then
+    workshopctl set-health error "cognee_local provider was not staged; check the setup-project hook output"
+    exit 0
+fi
+
+# Is the provider visible inside the Hermes workshop's plugin path? That only
+# happens once the cognee-hermes-plugin mount slot is connected to the Hermes
+# SDK's plugin mount plug.
+if [ -f /home/workshop/.hermes/plugins/cognee_local/__init__.py ]; then
+    echo -n "cognee-local provider mounted into ~/.hermes/plugins — set 'provider: cognee-local' in ~/.hermes/config.yaml"
+else
+    echo -n "cognee-local provider staged; connect cognee-hermes-plugin to the Hermes plugins mount to deliver it"
+fi
+workshopctl set-health okay

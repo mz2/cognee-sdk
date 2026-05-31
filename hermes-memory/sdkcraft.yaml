@@ -1,0 +1,44 @@
+name: cognee-hermes-memory
+version: "0.1.0"
+build-base: ubuntu@24.04
+summary: Mount-delivered Hermes memory provider backed by a self-hosted cognee
+description: |
+  This SDK delivers a Hermes memory-provider plugin (`cognee-local`) into a
+  Hermes workshop by *mounting* it into ~/.hermes/plugins — no file copying, and
+  the provider updates in place whenever this SDK is refreshed. The provider
+  talks to a self-hosted cognee REST server (the cognee SDK's `cognee-api`
+  tunnel, :8000) over plain HTTP using only the Python standard library, so a
+  Hermes agent can use cognee as its memory backend with no cloud and (when the
+  cognee server runs with access control disabled) no API key.
+
+  It ships only the provider package and exposes it on a `mount` slot. Connect
+  that slot to the Hermes SDK's cognee plugin mount plug to deliver the code,
+  and wire Hermes' existing `memory-backend` tunnel plug to the cognee SDK's
+  `cognee-api` slot for the data path.
+license: Apache-2.0
+# Pure-dump payload (no arch-specific build), so any runner cross-packs any
+# platform. Mirrors the cognee SDK's platform block.
+platforms:
+  amd64:
+    build-on: [amd64, arm64]
+    build-for: [amd64]
+  arm64:
+    build-on: [amd64, arm64]
+    build-for: [arm64]
+
+slots:
+  # The Hermes memory provider, staged by setup-project into a workshop-owned
+  # directory and shared over a mount. Connect this to the Hermes SDK's cognee
+  # plugin mount plug (workshop-target ~/.hermes/plugins/cognee_local) so the
+  # provider appears live in Hermes' plugin path with no copy.
+  cognee-hermes-plugin:
+    interface: mount
+    workshop-source: /home/workshop/.local/share/cognee-hermes/plugins/cognee_local
+
+parts:
+  # The provider package. Lands at $SDK/cognee_local; setup-project stages it
+  # into the mount-source directory exposed by the slot above.
+  plugin:
+    plugin: dump
+    source: plugin
+    source-type: local

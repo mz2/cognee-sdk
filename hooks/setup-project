@@ -54,6 +54,13 @@ if [ ! -f "$COGNEE_HOME/.env" ]; then
 # Set to 1 to run the cognee REST API server (exposed on the cognee-api tunnel,
 # :8000). Leave 0/unset for in-process library use only.
 COGNEE_SERVE=0
+#
+# The self-hosted server enforces per-user access control by default, which a
+# peer consumer (e.g. the cognee-hermes-memory provider) would have to log in
+# for. For a single-user workshop, disable it for keyless access on the tunnel.
+# Set both to true (and register a user) if you want authenticated multi-tenant.
+ENABLE_BACKEND_ACCESS_CONTROL=false
+REQUIRE_AUTHENTICATION=false
 EOF
     chmod 600 "$COGNEE_HOME/.env"
 fi

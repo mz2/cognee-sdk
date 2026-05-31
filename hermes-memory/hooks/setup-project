@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+# Runs as the workshop user after interfaces are connected. Stages the cognee
+# memory provider from the (root-owned, 711) SDK payload into a workshop-owned,
+# world-readable directory that the `cognee-hermes-plugin` mount slot shares.
+#
+# Workshop has already bind-mounted that directory into the Hermes workshop's
+# ~/.hermes/plugins/cognee_local (if the slot is connected), so re-staging here
+# makes the latest provider visible in Hermes' plugin path live — no copy into
+# ~/.hermes by the user, and updates propagate on every `workshop refresh`.
+set -euo pipefail
+
+SRC="$SDK/cognee_local"
+DEST="$HOME/.local/share/cognee-hermes/plugins/cognee_local"
+
+mkdir -p "$(dirname "$DEST")"
+rm -rf "$DEST"
+cp -a "$SRC" "$DEST"
+# Ensure the package and its files are traversable/readable by Hermes.
+chmod -R a+rX "$HOME/.local/share/cognee-hermes"

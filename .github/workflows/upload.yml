@@ -50,10 +50,26 @@ jobs:
         env:
           INPUT_BRANCH: ${{ inputs.branch }}
 
-      - name: Pack SDK for ${{ matrix.arch }}
+      - name: Pack cognee SDK for ${{ matrix.arch }}
         run: sdkcraft --verbose pack --build-for ${{ matrix.arch }}
 
-      - name: Upload ${{ matrix.arch }} SDK
+      - name: Upload cognee ${{ matrix.arch }} SDK
+        env:
+          SDKCRAFT_STORE_CREDENTIALS: ${{ secrets.SDKCRAFT_STORE_CREDENTIALS }}
+        run: |
+          for sdk in *.sdk; do
+            sdkcraft --verbose upload "$sdk" --release "${TRACK}/stable"
+          done
+
+      # The bridge SDK (cognee-hermes-memory). Requires a one-time
+      # `sdkcraft register cognee-hermes-memory`; until then this step fails
+      # while the cognee upload above still succeeds.
+      - name: Pack cognee-hermes-memory SDK for ${{ matrix.arch }}
+        working-directory: hermes-memory
+        run: sdkcraft --verbose pack --build-for ${{ matrix.arch }}
+
+      - name: Upload cognee-hermes-memory ${{ matrix.arch }} SDK
+        working-directory: hermes-memory
         env:
           SDKCRAFT_STORE_CREDENTIALS: ${{ secrets.SDKCRAFT_STORE_CREDENTIALS }}
         run: |

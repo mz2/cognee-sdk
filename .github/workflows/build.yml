@@ -32,5 +32,8 @@ jobs:
           channel: 6/stable
       - name: Install sdkcraft
         run: sudo snap install sdkcraft --classic
-      - name: Pack SDK for ${{ matrix.arch }}
+      - name: Pack cognee SDK for ${{ matrix.arch }}
+        run: sdkcraft --verbose pack --build-for ${{ matrix.arch }}
+      - name: Pack cognee-hermes-memory SDK for ${{ matrix.arch }}
+        working-directory: hermes-memory
         run: sdkcraft --verbose pack --build-for ${{ matrix.arch }}

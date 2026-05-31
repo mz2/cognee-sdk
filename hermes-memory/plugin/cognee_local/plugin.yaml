@@ -1,0 +1,6 @@
+name: cognee-local
+version: 0.1.0
+description: "Hermes memory backed by a self-hosted cognee REST server (no cloud, no API key)."
+# No pip dependencies — the provider talks to the cognee server over plain HTTP
+# using only the Python standard library.
+pip_dependencies: []
